@@ -33,7 +33,7 @@ namespace Unai.VITC
         /// </summary>
         public bool b15 = false;
         /// <summary>
-        /// Bit 35: NTSC field bit. Used to indicate a NTSC (29,97/30 fps) second field.
+        /// Bit 35: NTSC field bit. Used to indicate a NTSC (29.97/30 fps) second field.
         /// </summary>
         public bool b35 = false;
         /// <summary>
@@ -49,7 +49,7 @@ namespace Unai.VITC
         /// </summary>
         public bool b75 = false;
 
-        public enum FrameRateType { Film = 24, PAL = 25, NTSC = 29, ATSC = 30 }
+        public enum FrameRateType { Film = 24, PAL = 25, NTSC = 30 }
         public FrameRateType frameRateType = FrameRateType.PAL;
         public bool interlaced = false;
 
@@ -111,7 +111,7 @@ namespace Unai.VITC
             ba.Set(74, b74);
             ba.Set(75, b75);
 
-            // set user bits
+            // set user bits (4 bytes)
             ba.Set(6, ub.Get(0)); ba.Set(7, ub.Get(1)); ba.Set(8, ub.Get(2)); ba.Set(9, ub.Get(3));
             ba.Set(16, ub.Get(4)); ba.Set(17, ub.Get(5)); ba.Set(18, ub.Get(6)); ba.Set(19, ub.Get(7));
             ba.Set(26, ub.Get(8)); ba.Set(27, ub.Get(9)); ba.Set(28, ub.Get(10)); ba.Set(29, ub.Get(11));

@@ -41,6 +41,7 @@ namespace Unai.VITC
             // read arguments
             for (int i = 0; i < args.Length; i++)
             {
+                // TODO: Improve argument parsing.
                 string arg = args[i].Replace("/", "").Replace("-", "");
                 switch (arg)
                 {
@@ -81,7 +82,7 @@ namespace Unai.VITC
                         catch { Console.Error.WriteLine("Unable to parse duration (T) argument!"); }
                         i++;
                         break;
-                    case "ev":
+                    case "ev": // -ev HH:MM:SS:FF [UserBits/Timecode/UserBitsClear] "Test"
                         try
                         {
                             var tc = args[i + 1].Split(':');
@@ -103,8 +104,9 @@ namespace Unai.VITC
             }
 
             //render vitc lines to output.
-            while (vitc.currentFrame <= vitc.totalFrames)
+            while (vitc.currentFrame < vitc.totalFrames)
             {
+                // check for events
                 if (events.ContainsKey(vitc.currentFrame))
                 {
                     switch (events[vitc.currentFrame].Key)
@@ -132,6 +134,7 @@ namespace Unai.VITC
                 if (vitc.interlaced)
                 {
                     vitc.ba.Set(vitc.fps == 25 ? 75 : 35, true);
+                    vitc.SetChecksum();
                     PrintOutput();
                 }
 
