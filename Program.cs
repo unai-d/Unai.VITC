@@ -11,15 +11,14 @@ namespace Unai.VITC
 {
     public static class Program
     {
-        public static Stream output;
+        static Stream output;
+        static VITCLine vitc;
+        static bool interlaced = false;
 
-        public static VITCLine vitc;
-
-        public enum EventType { UserBits, Timecode, Flags, FPS, UserBitsClear }
+		public enum EventType { UserBits, Timecode, Flags, FPS, UserBitsClear }
         public static Dictionary<long, KeyValuePair<EventType, string>> events =
             new Dictionary<long, KeyValuePair<EventType, string>>();
 
-        
         public static void PrintOutput()
         {
             for (int bi = 0; bi < vitc.ba.Count; bi++)
@@ -41,14 +40,13 @@ namespace Unai.VITC
             // read arguments
             for (int i = 0; i < args.Length; i++)
             {
-                // TODO: Improve argument parsing.
-                string arg = args[i].Replace("/", "").Replace("-", "");
-                switch (arg)
+                string arg = args[i].Replace("/", "-");
+                switch (arg.ToLower())
                 {
                     default:
                         Console.Error.WriteLine("Unrecognized argument: " + arg);
                         break;
-                    case "fps":
+                    case "-fps":
                         try
                         {
                             vitc.fps = Convert.ToInt32(args[i + 1]);
@@ -57,7 +55,8 @@ namespace Unai.VITC
                         catch { Console.Error.WriteLine("Unable to parse FPS argument!"); }
                         i++;
                         break;
-                    case "tc":
+                    case "-tc":
+                    case "--timecode":
                         try
                         {
                             var tc = args[i + 1].Split(':');
@@ -69,7 +68,8 @@ namespace Unai.VITC
                         catch { Console.Error.WriteLine("Unable to parse initial timecode (TC) argument!"); }
                         i++;
                         break;
-                    case "t":
+                    case "-t":
+                    case "--length":
                         try
                         {
                             var tc = args[i + 1].Split(':');
@@ -82,7 +82,8 @@ namespace Unai.VITC
                         catch { Console.Error.WriteLine("Unable to parse duration (T) argument!"); }
                         i++;
                         break;
-                    case "ev": // -ev HH:MM:SS:FF [UserBits/Timecode/UserBitsClear] "Test"
+                    case "-ev": // -ev HH:MM:SS:FF [UserBits/Timecode/UserBitsClear]="Test"
+                    case "--event":
                         try
                         {
                             var tc = args[i + 1].Split(':');
@@ -91,17 +92,27 @@ namespace Unai.VITC
                             int sec = Convert.ToInt32(tc[2]);
                             int frame = Convert.ToInt32(tc[3]);
                             long tcf = frame + (sec * vitc.fps) + (min * vitc.fps * 60) + (hour * vitc.fps * 3600);
-                            events[tcf] = new KeyValuePair<EventType, string>((EventType)Enum.Parse(typeof(EventType), args[i + 2], true), args[i + 3].Trim('"'));
+
+                            var evparams = args[i + 2].Split('=');
+                            var eventType = (EventType)Enum.Parse(typeof(EventType), evparams[0], true);
+                            string data = evparams.Length > 1 ? evparams[1] : null;
+                            events[tcf] = new KeyValuePair<EventType, string>(eventType, data);
                         }
                         catch { Console.Error.WriteLine("Unable to parse event (EV) argument!"); }
                         i += 3;
                         break;
-                    case "inter":
-                        vitc.interlaced = true;
-                        i++;
+                    case "-i":
+                    case "--interlaced":
+                        interlaced = true;
+                        break;
+                    case "-d":
+                    case "--drop-frames":
+                        vitc.DropFrameMode = true;
                         break;
                 }
             }
+
+            //Console.Error.WriteLine($"[VITC]: {vitc.fps}FPS ({vitc.frameRateType}) Drop={vitc.DropFrameMode} Inter={interlaced}");
 
             //render vitc lines to output.
             while (vitc.currentFrame < vitc.totalFrames)
@@ -131,10 +142,9 @@ namespace Unai.VITC
 
                 vitc.Generate();
                 PrintOutput();
-                if (vitc.interlaced)
+                if (interlaced)
                 {
-                    vitc.ba.Set(vitc.fps == 25 ? 75 : 35, true);
-                    vitc.SetChecksum();
+                    vitc.Generate(true);
                     PrintOutput();
                 }
 

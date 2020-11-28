@@ -21,13 +21,13 @@ Unai.VITC only generates the raw VITC signal. If you want to take the output and
 In this case, we can use a simple pipeline to communicate both processes. The command should start like this:
 
 ```
-Unai.VITC.exe | ffmpeg.exe -f rawvideo -video_size 90x1 -pixel_format gray -i - [...]
+Unai.VITC.exe | ffmpeg.exe -f rawvideo -video_size 90x1 -pixel_format gray -framerate 25 -i - [...]
 ```
 
 This will make FFmpeg take the VITC raw signal and interpret it like a raw video stream. Now we can finally generate a VITC signal and save it as a video file:
 
 ```
-Unai.VITC.exe | ffmpeg.exe -f rawvideo -video_size 90x1 -pixel_format gray -i - -f mp4 -c:v h264 -pix_fmt yuv420p -vf scale=360:4:flags=neighbor my-vitc.mp4
+Unai.VITC.exe | ffmpeg.exe -f rawvideo -video_size 90x1 -pixel_format gray -framerate 25 -i - -f mp4 -c:v h264 -pix_fmt yuv420p -vf scale=360:4:flags=neighbor my-vitc.mp4
 ```
 
 **NOTE**: since there are some video codecs that cannot process video streams below *n* pixels of resolution, you must upscale it.
@@ -41,9 +41,11 @@ It allows you to set the frames per second, but the only accepted values are 24,
 
 `-fps [24/25/30]`
 
-#### Example: set framerate to 29.97 (NTSC)
+#### Example: set framerate to 30 (ATSC)
 `-fps 30`
-**NOTE**: frame drop is not supported yet, so this will generate a pure 30 FPS video, not 29.97.
+
+#### Example: set framerate to 29.97 (NTSC)
+`-fps 30 -d` (see also the `-d` modifier)
 
 ### `-tc`: set initial timecode
 It changes the initial timecode. Default: `00:00:00:00`.
@@ -63,10 +65,10 @@ It determines how long will be the output. Default: `00:01:40:00`.
 
 ### `-ev`: set an event
 You can set an event at a specified time in order to change parameters or variables.
-`EventType` must be `UserBits`, `UserBitsClear`, and `Timecode` (case sensitive).
-If the second parameter, `input`, is not used, you must specify `""` anyways.
+`EventType` must be `UserBits`, `UserBitsClear`, and `Timecode` (case insensitive).
+Some events may require an additional parameter that must be joined with the `EventType` field with a `=` character.
 
-`-ev HH:MM:SS:FF EventType "input"`
+`-ev HH:MM:SS:FF EventType=input`
 
 #### `UserBits` event type
 In the VITC signal, there are some reserved bits that can be used to transmit a maximum of 4 custom bytes per frame.
@@ -80,15 +82,23 @@ Clears all the user bits. That is, the user bits are filled with zeros.
 It allows you to change the timecode at any time.
 
 #### Example: set the user bits to "Test" at the beginning
-`-ev 00:00:00:00 UserBits "Test"`
+`-ev 00:00:00:00 UserBits=Test`
 
 #### Example: change the timecode to 23:00:00:00 when reaching 00:01:00:00
-`-ev 00:01:00:00 TimeCode "23:00:00:00"`
+`-ev 00:01:00:00 TimeCode=23:00:00:00`
+
+### `-i`: interlaced mode
+Specifies whether the video is interlaced or not.
+In the case of being interlaced, the program will generate two VITC lines per frame: one for each field.
+
+### `-d`: Drop-frame mode
+Specifies whether use drop-frame time code or not.
+If 30 FPS video is indicated with this option enabled, then the program will generate a 29.97 FPS VITC instead.
 
 ## Example with multiple arguments
 Create a VITC signal of 10 seconds long. At second 2, set the user bits to "Test" and at second 4, clear them.
 
-`Unai.VITC.exe -t 00:00:10:00 -ev 00:00:02:00 UserBits "Test" -ev 00:00:04:00 UserBitsClear ""`
+`Unai.VITC.exe -t 00:00:10:00 -ev 00:00:02:00 UserBits=Test -ev 00:00:04:00 UserBitsClear`
 
 ### Result
 ![VITC example 2](img/vitc-4px-10s.png)

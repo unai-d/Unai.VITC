@@ -25,7 +25,7 @@ namespace Unai.VITC
         public long totalFrames = 2500;
 
         /// <summary>
-        /// Bit 14: Frame drop bit. Used in NTSC video signals for frame dropping compensation.
+        /// Bit 14: Frame drop bit. Used in NTSC video signals to indicate frame-drop timecode mode.
         /// </summary>
         public bool b14 = false;
         /// <summary>
@@ -51,11 +51,17 @@ namespace Unai.VITC
 
         public enum FrameRateType { Film = 24, PAL = 25, NTSC = 30 }
         public FrameRateType frameRateType = FrameRateType.PAL;
-        public bool interlaced = false;
+        public bool DropFrameMode { get; set; } = false;
 
         #region Methods
         public void Generate(bool secondField = false)
         {
+            // process flags
+            b75 = secondField && frameRateType == FrameRateType.PAL;
+            b35 = secondField && frameRateType == FrameRateType.NTSC;
+            b14 = DropFrameMode && frameRateType == FrameRateType.NTSC;
+
+            // set units and decimals
             int framesu = frame % 10;
             int secu = sec % 10;
             int secd = (sec - secu) / 10;
@@ -138,6 +144,9 @@ namespace Unai.VITC
             ba.Set(89, ba.Get(81) ^ ba.Get(73) ^ ba.Get(65) ^ ba.Get(57) ^ ba.Get(49) ^ ba.Get(41) ^ ba.Get(33) ^ ba.Get(25) ^ ba.Get(17) ^ ba.Get(9) ^ ba.Get(1));
         }
 
+        /// <summary>
+        /// Increments one frame.
+        /// </summary>
         public void StepOneFrame()
         {
             frame++;
@@ -146,6 +155,15 @@ namespace Unai.VITC
             if (min > 59) { min = 0; hour++; }
             if (hour > 23) { hour = 0; }
             currentFrame++;
+
+            // smpte drop-frame timecode
+            if (DropFrameMode && frameRateType == FrameRateType.NTSC)
+			{
+                if (min % 10 != 0 && sec == 0 && frame == 0)
+				{
+                    frame = 2;
+				}
+			}
         }
         #endregion
     }

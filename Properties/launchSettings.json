@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "Unai.VITC": {
+      "commandName": "Project",
+      "commandLineArgs": "-fps 30 -d -i"
+    }
+  }
+}
