@@ -34,6 +34,26 @@ Unai.VITC.exe | ffmpeg.exe -f rawvideo -video_size 90x1 -pixel_format gray -fram
 And to avoid a blurry output, make sure it's using nearest neighbor mode.
 Also, make sure you are converting the 8-bit grayscale pixel format to another pixel format supported by the output codec (in this case, YUV 4:2:0).
 
+### Results
+FFmpeg has got a video filter called `readvitc` which allows us to decode VITC lines from a video.
+All the possible framerates had been tested with this filter, giving the following results:
+
+**24 FPS**
+
+![VITC 24 FPS example](img/readvitc-film.png)
+
+**25 FPS**
+
+![VITC 25 FPS example](img/readvitc-pal.png)
+
+**29.97 FPS**
+
+![VITC 29.97 FPS example](img/readvitc-ntsc-drop.png)
+
+**30 FPS**
+
+![VITC 30 FPS example](img/readvitc-ntsc.png)
+
 ## Arguments
 
 ### `-fps`: set framerate
