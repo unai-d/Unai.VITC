@@ -1,42 +1,45 @@
 # Unai.VITC
 ![VITC example](img/vitc-4px-60s.png)
 
-**Unai.VITC** is a simple VITC (vertical interval timecode) signal generator and it is written in C# for the .NET Core 3.1 platform.
+**Unai.VITC** is a simple VITC (vertical interval timecode) signal generator, written in C# for the .NET Core 3.1 platform.
 
 ## Usage
-Unai.VITC is a console application: it will read the arguments whether or not specified and it will write the result on the console's standard output as a **raw bitmap** stream, resolution **90x1** and **8-bit grayscale** pixel format.
+`Unai.VITC` is a console application: you must use it through a terminal and control how it works by passing arguments to it (like changing the framerate; see below).
 
-If you just type this:
+If no arguments are specified, the program's default behaviour will write the result on the console's standard output as a **raw bitmap** stream, resolution **90x2** and **8-bit grayscale** pixel format.
+It will default to a **25 FPS progresive video** and will render indefinitely.
+Also, you will get a bunch of gibberish getting printed on your console, which represent the generated VITC code.
+Press <kbd>Ctrl</kbd>+<kbd>C</kbd> on the terminal to stop it.
 
-```Unai.VITC.exe```
-
-It will default to a 25 FPS progresive video, and render 2500 frames from 00:00:00.00 to 00:01:39.24 (0 to 2499).
-Also, you will get a bunch of `ÿ` and ` ` (null) characters on your console.
-To save the raw output to a file, you can redirect it:
+To save the output to a file, you can redirect it:
 
 ```Unai.VITC.exe > my-vitc.raw```
 
-### Generate a video
-Unai.VITC only generates the raw VITC signal. If you want to take the output and turn it into a video file, you can use FFmpeg.
+Or you can also do the same thing using the `-o` parameter:
+
+```Unai.VITC.exe -o my-vitc.raw```
+
+### Generate a video file
+`Unai.VITC` only generates the raw VITC signal. If you want to take the output and turn it into a video file, you can use FFmpeg.
 In this case, we can use a simple pipeline to communicate both processes. The command should start like this:
 
 ```
-Unai.VITC.exe | ffmpeg.exe -f rawvideo -video_size 90x1 -pixel_format gray -framerate 25 -i - [...]
+Unai.VITC.exe | ffmpeg.exe -f rawvideo -video_size 90x2 -pixel_format gray -framerate 25 -i - […]
 ```
 
 This will make FFmpeg take the VITC raw signal and interpret it like a raw video stream. Now we can finally generate a VITC signal and save it as a video file:
 
 ```
-Unai.VITC.exe | ffmpeg.exe -f rawvideo -video_size 90x1 -pixel_format gray -framerate 25 -i - -f mp4 -c:v h264 -pix_fmt yuv420p -vf scale=360:4:flags=neighbor my-vitc.mp4
+Unai.VITC.exe | ffmpeg.exe -f rawvideo -video_size 90x2 -pixel_format gray -framerate 25 -i - -f mp4 -c:v h264 -pix_fmt yuv420p -vf scale=360:4:flags=neighbor my-vitc.mp4
 ```
 
 **NOTE**: since there are some video codecs that cannot process video streams below *n* pixels of resolution, you must upscale it.
-And to avoid a blurry output, make sure it's using nearest neighbor mode.
-Also, make sure you are converting the 8-bit grayscale pixel format to another pixel format supported by the output codec (in this case, YUV 4:2:0).
+And to avoid a blurry output, make sure it's using nearest neighbor mode when upscaling.
+Also, make sure you are converting the 8-bit grayscale pixel format to another pixel format if the former is not supported by the output codec (in this case, H.264 uses YUV 4:2:0).
 
 ### Results
-FFmpeg has got a video filter called `readvitc` which allows us to decode VITC lines from a video.
-All the possible framerates had been tested with this filter, giving the following results:
+FFmpeg has a video filter called `readvitc` which allows us to decode VITC lines from a video.
+All the possible framerates have been tested with this filter, giving the following results:
 
 **24 FPS**
 
@@ -55,6 +58,27 @@ All the possible framerates had been tested with this filter, giving the followi
 ![VITC 30 FPS example](img/readvitc-ntsc.png)
 
 ## Arguments
+
+### `-i`: input file
+It determines the video file/stream that the VITC lines will be stamped on.
+This does not overwrite the original file. Use `-o` to specify the output file.
+If this option is not specified, no base video is used and instead, only the VITC line is rendered on the output file.
+
+### `-o`: output file
+It determines the output file where the result will be saved at.
+Use `-` (dash) to indicate the standard output of the console. Default: `-`.
+
+### `-f`: set pixel format
+It indicates the pixel format of both input and output video streams. Default: `Grayscale8`.
+
+Common values are `Grayscale8` and `R8G8B8` (24-bit RGB).
+
+### `-s`: set frame size
+Sets the input and/or output frame size in pixels. Default: `90x2`.
+
+`-s WxH` where:
+- `W` is width.
+- `H` is height.
 
 ### `-fps`: set framerate
 It allows you to set the frames per second, but the only accepted values are 24, 25, and 30 (29.97). Default: `25`.
@@ -76,7 +100,7 @@ It changes the initial timecode. Default: `00:00:00:00`.
 `-tc 14:59:00:06`
 
 ### `-t`: set duration
-It determines how long will be the output. Default: `00:01:40:00`.
+It determines how long will be the output. Default: indefinitely.
 
 `-t HH:MM:SS:FF`
 
@@ -107,7 +131,7 @@ It allows you to change the timecode at any time.
 #### Example: change the timecode to 23:00:00:00 when reaching 00:01:00:00
 `-ev 00:01:00:00 TimeCode=23:00:00:00`
 
-### `-i`: interlaced mode
+### `-I`: interlaced mode
 Specifies whether the video is interlaced or not.
 In the case of being interlaced, the program will generate two VITC lines per frame: one for each field.
 
