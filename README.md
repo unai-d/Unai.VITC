@@ -1,7 +1,7 @@
 # Unai.VITC
 ![VITC example](img/vitc-4px-60s.png)
 
-**Unai.VITC** is a simple VITC (vertical interval timecode) signal generator, written in C# for the .NET Core 3.1 platform.
+**Unai.VITC** is a simple VITC (vertical interval timecode) signal generator, written in C# for .NET 6.0.
 
 ## Usage
 `Unai.VITC` is a console application: you must use it through a terminal and control how it works by passing arguments to it (like changing the framerate; see below).
@@ -116,8 +116,8 @@ Some events may require an additional parameter that must be joined with the `Ev
 
 #### `UserBits` event type
 In the VITC signal, there are some reserved bits that can be used to transmit a maximum of 4 custom bytes per frame.
-Those custom bits are called UserBits and can be set at any time with the `-ev` modifier.
-To clean the user bits, you can use `UserBitsClear`.
+Those custom bits are called **user bits** and can be set at any time with the `-ev` modifier.
+To clean the user bits, use `UserBitsClear`.
 
 #### `UserBitsClear` event type
 Clears all the user bits. That is, the user bits are filled with zeros.

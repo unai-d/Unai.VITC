@@ -76,6 +76,7 @@ namespace Unai.VITC
 			Console.Error.WriteLine($"[Unai.VITC] Input is '{inputFilePath ?? "<null>"}'.");
 			Console.Error.WriteLine($"[Unai.VITC] Output is '{outputFilePath ?? "-"}'.");
 			Console.Error.WriteLine($"[Unai.VITC] {vitc.fps}FPS ({vitc.frameRateType}) Drop={vitc.DropFrameMode} Inter={vitc.Interlaced}");
+			Console.Error.WriteLine($"[Unai.VITC] Starting from {vitc}");
 
 			// Main loop.
 			while (totalFrames.HasValue ? vitc.currentFrame < totalFrames.Value : true)
@@ -131,7 +132,7 @@ namespace Unai.VITC
 					framebuffer.DrawRectangle(0, 0, frameFormat.Width, topMargin + bottomMargin + (vitcBitHeight * 2), 0f);
 				}
 
-				// Render the VITC line onto the framebuffer and output the result to the output stream.
+				// Render the VITC line into the framebuffer.
 				vitc.Generate();
 				for (int bi = 0; bi < vitc.ba.Count; bi++)
 				{
@@ -158,6 +159,7 @@ namespace Unai.VITC
 						);
 				}
 				
+				// Output the framebuffer contents to the output stream.
 				outputStream.Write(framebuffer.Buffer, 0, framebuffer.Buffer.Length);
 
 				vitc.StepOneFrame();
@@ -169,7 +171,7 @@ namespace Unai.VITC
 			for (int i = 0; i < args.Length; i++)
 			{
 				string arg = args[i];
-				switch (arg.ToLower())
+				switch (arg)
 				{
 					default:
 						Console.Error.WriteLine("Unrecognized argument: " + arg);

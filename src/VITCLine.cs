@@ -60,18 +60,24 @@ namespace Unai.VITC
 		public bool IsSecondField => secondField;
 
 		#region Methods
+		public override string ToString()
+		{
+			return $"{hour:D2}:{min:D2}:{sec:D2}{(DropFrameMode ? ';' : ':')}{frame:D2}";
+		}
+
 		/// <summary>
 		/// Generates the VITC line based on the data contained (including the timestamp, the user data bits…)
 		/// </summary>
 		public void Generate()
 		{
-			// process flags
+			// Process flags.
 			b75 = secondField && frameRateType == FrameRateType.PAL;
 			b35 = secondField && frameRateType == FrameRateType.NTSC;
 			b14 = DropFrameMode && frameRateType == FrameRateType.NTSC;
 
-			// set units and decimals
-			int framesu = frame % 10;
+			// Set unit and decimal values.
+			int frameU = frame % 10;
+			int frameD = (frame - frameU) / 10;
 			int secu = sec % 10;
 			int secd = (sec - secu) / 10;
 			int minu = min % 10;
@@ -82,21 +88,21 @@ namespace Unai.VITC
 			// Clear all bits.
 			ba.SetAll(false);
 
-			// Set synchronization bits.
+			// Set synchronisation bits.
 			ba.Set(0, true); ba.Set(10, true); ba.Set(20, true); ba.Set(30, true); ba.Set(40, true);
 			ba.Set(50, true); ba.Set(60, true); ba.Set(70, true); ba.Set(80, true);
 
-			// Set frame number bits (2-13 including flags 14 and 15).
-			ba.Set(2, framesu % 2 == 1);
-			ba.Set(3, framesu == 2 || framesu == 3 || framesu == 6 || framesu == 7);
-			ba.Set(4, framesu >= 4 && framesu < 8);
-			ba.Set(5, framesu >= 8);
-			ba.Set(12, frame - framesu == 10);
-			ba.Set(13, frame - framesu == 20);
+			// Set frame number bits (2-5 and 12-13, including flags 14 and 15).
+			ba.Set(2, frameU % 2 == 1);
+			ba.Set(3, frameU == 2 || frameU == 3 || frameU == 6 || frameU == 7);
+			ba.Set(4, frameU >= 4 && frameU < 8);
+			ba.Set(5, frameU >= 8);
+			ba.Set(12, frameD % 2 == 1);
+			ba.Set(13, frameD == 2);
 			ba.Set(14, b14);
 			ba.Set(15, b15);
 
-			// Set second number bits (22-34 including flag 35).
+			// Set second number bits (22-25 and 32-34, including flag 35).
 			ba.Set(22, secu % 2 == 1);
 			ba.Set(23, secu == 2 || secu == 3 || secu == 6 || secu == 7);
 			ba.Set(24, secu >= 4 && secu < 8);
@@ -106,7 +112,7 @@ namespace Unai.VITC
 			ba.Set(34, secd >= 4);
 			ba.Set(35, b35);
 
-			// Set minute number bits (42-54 including flag 55).
+			// Set minute number bits (42-45 and 52-54, including flag 55).
 			ba.Set(42, minu % 2 == 1);
 			ba.Set(43, minu == 2 || minu == 3 || minu == 6 || minu == 7);
 			ba.Set(44, minu >= 4 && minu < 8);
@@ -116,7 +122,7 @@ namespace Unai.VITC
 			ba.Set(54, mind >= 4);
 			ba.Set(55, b55);
 
-			// Set hour number bits (62-73 including flags 74 and 75).
+			// Set hour number bits (62-65 and 72-73, including flags 74 and 75).
 			ba.Set(62, houru % 2 == 1);
 			ba.Set(63, houru == 2 || houru == 3 || houru == 6 || houru == 7);
 			ba.Set(64, houru >= 4 && houru < 8);
@@ -141,7 +147,7 @@ namespace Unai.VITC
 
 		public void SetChecksum()
 		{
-			// set checksum (bits 82-89)
+			// Set checksum (bits 82-89).
 			ba.Set(82, ba.Get(74) ^ ba.Get(66) ^ ba.Get(58) ^ ba.Get(50) ^ ba.Get(42) ^ ba.Get(34) ^ ba.Get(26) ^ ba.Get(18) ^ ba.Get(10) ^ ba.Get(2));
 			ba.Set(83, ba.Get(75) ^ ba.Get(67) ^ ba.Get(59) ^ ba.Get(51) ^ ba.Get(43) ^ ba.Get(35) ^ ba.Get(27) ^ ba.Get(19) ^ ba.Get(11) ^ ba.Get(3));
 			ba.Set(84, ba.Get(76) ^ ba.Get(68) ^ ba.Get(60) ^ ba.Get(52) ^ ba.Get(44) ^ ba.Get(36) ^ ba.Get(28) ^ ba.Get(20) ^ ba.Get(12) ^ ba.Get(4));
