@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Collections;
 using System.Collections.Generic;
-using System.Linq;
 using System.Text;
 using System.IO;
 
@@ -22,7 +21,6 @@ namespace Unai.VITC
 		static string inputFilePath = null, outputFilePath = null;
 		static Stream inputStream = null, outputStream = null;
 
-		public enum EventType { UserBits, Timecode, Flags, FPS, UserBitsClear }
 		public static Dictionary<long, KeyValuePair<EventType, string>> events =
 			new Dictionary<long, KeyValuePair<EventType, string>>();
 
@@ -75,37 +73,37 @@ namespace Unai.VITC
 			Console.Error.WriteLine($"[Unai.VITC] Mode is `{operationMode}` {frameWidth}×{frameHeight} `{pixelFormat}`.");
 			Console.Error.WriteLine($"[Unai.VITC] Input is '{inputFilePath ?? "<null>"}'.");
 			Console.Error.WriteLine($"[Unai.VITC] Output is '{outputFilePath ?? "-"}'.");
-			Console.Error.WriteLine($"[Unai.VITC] {vitc.fps}FPS ({vitc.frameRateType}) Drop={vitc.DropFrameMode} Inter={vitc.Interlaced}");
+			Console.Error.WriteLine($"[Unai.VITC] {vitc.FramesPerSecond}FPS ({vitc.FrameRateType}) Drop={vitc.DropFrameMode} Inter={vitc.Interlaced}");
 			Console.Error.WriteLine($"[Unai.VITC] Starting from {vitc}");
 
 			// Main loop.
-			while (totalFrames.HasValue ? vitc.currentFrame < totalFrames.Value : true)
+			while (totalFrames.HasValue ? vitc.CurrentFrame < totalFrames.Value : true)
 			{
 				// Check for events meant to be executed at the current frame.
-				if (events.ContainsKey(vitc.currentFrame))
+				if (events.ContainsKey(vitc.CurrentFrame))
 				{
-					switch (events[vitc.currentFrame].Key)
+					switch (events[vitc.CurrentFrame].Key)
 					{
 						default:
-							Console.Error.WriteLine($"Unrecognised event type: `{events[vitc.currentFrame].Key}`.");
+							Console.Error.WriteLine($"Unrecognised event type: `{events[vitc.CurrentFrame].Key}`.");
 							break;
 
 						case EventType.UserBits:
-							string str = events[vitc.currentFrame].Value[..4];
+							string str = events[vitc.CurrentFrame].Value[..4];
 							var strbyte = Encoding.ASCII.GetBytes(str);
-							vitc.ub = new BitArray(strbyte);
+							vitc.userBits = new BitArray(strbyte);
 							break;
 
 						case EventType.Timecode:
-							var tc = events[vitc.currentFrame].Value.Split(':');
-							vitc.hour = Convert.ToInt32(tc[0]);
-							vitc.min = Convert.ToInt32(tc[1]);
-							vitc.sec = Convert.ToInt32(tc[2]);
-							vitc.frame = Convert.ToInt32(tc[3]);
+							var tc = events[vitc.CurrentFrame].Value.Split(':');
+							vitc.Hour = Convert.ToInt32(tc[0]);
+							vitc.Minute = Convert.ToInt32(tc[1]);
+							vitc.Second = Convert.ToInt32(tc[2]);
+							vitc.Frame = Convert.ToInt32(tc[3]);
 							break;
 
 						case EventType.UserBitsClear:
-							vitc.ub.SetAll(false);
+							vitc.userBits.SetAll(false);
 							break;
 					}
 				}
@@ -134,28 +132,28 @@ namespace Unai.VITC
 
 				// Render the VITC line into the framebuffer.
 				vitc.Generate();
-				for (int bi = 0; bi < vitc.ba.Count; bi++)
+				for (int bi = 0; bi < vitc.Result.Count; bi++)
 				{
 					framebuffer.DrawRectangle(
 						leftMargin + (bi * vitcBitWidth),
 						topMargin,
 						vitcBitWidth,
 						vitcBitHeight,
-						vitc.ba[bi] ? 1f : 0f
+						vitc.Result[bi] ? 1f : 0f
 						);
 				}
 
 				vitc.SwitchFieldType();
 				
 				vitc.Generate();
-				for (int bi = 0; bi < vitc.ba.Count; bi++)
+				for (int bi = 0; bi < vitc.Result.Count; bi++)
 				{
 					framebuffer.DrawRectangle(
 						leftMargin + (bi * vitcBitWidth),
 						topMargin + vitcBitHeight,
 						vitcBitWidth,
 						vitcBitHeight,
-						vitc.ba[bi] ? 1f : 0f
+						vitc.Result[bi] ? 1f : 0f
 						);
 				}
 				
@@ -193,7 +191,7 @@ namespace Unai.VITC
 					case "--pixel-format":
 						try
 						{
-							pixelFormat = (PixelFormat)Enum.Parse(typeof(PixelFormat), args[i + 1]);
+							pixelFormat = (PixelFormat)Enum.Parse(typeof(PixelFormat), args[i + 1], true);
 						}
 						catch { Console.Error.WriteLine($"Unrecognised pixel format: `{args[i + 1]}`."); }
 						i++;
@@ -213,10 +211,10 @@ namespace Unai.VITC
 
 					case "-fps":
 					case "--framerate":
+					case "--frames-per-second":
 						try
 						{
-							vitc.fps = Convert.ToInt32(args[i + 1]);
-							vitc.frameRateType = (VITCLine.FrameRateType)Convert.ToInt32(args[i + 1]);
+							vitc.FramesPerSecond = Convert.ToInt32(args[i + 1]);
 						}
 						catch { Console.Error.WriteLine("Unable to parse FPS argument!"); }
 						i++;
@@ -227,10 +225,10 @@ namespace Unai.VITC
 						try
 						{
 							var tc = args[i + 1].Split(':');
-							vitc.hour = Convert.ToInt32(tc[0]);
-							vitc.min = Convert.ToInt32(tc[1]);
-							vitc.sec = Convert.ToInt32(tc[2]);
-							vitc.frame = Convert.ToInt32(tc[3]);
+							vitc.Hour = Convert.ToInt32(tc[0]);
+							vitc.Minute = Convert.ToInt32(tc[1]);
+							vitc.Second = Convert.ToInt32(tc[2]);
+							vitc.Frame = Convert.ToInt32(tc[3]);
 						}
 						catch { Console.Error.WriteLine("Unable to parse initial timecode (TC) argument!"); }
 						i++;
@@ -245,13 +243,13 @@ namespace Unai.VITC
 							int min = Convert.ToInt32(tc[1]);
 							int sec = Convert.ToInt32(tc[2]);
 							int frame = Convert.ToInt32(tc[3]);
-							totalFrames = frame + (sec * vitc.fps) + (min * vitc.fps * 60) + (hour * vitc.fps * 3600);
+							totalFrames = frame + (sec * vitc.FramesPerSecond) + (min * vitc.FramesPerSecond * 60) + (hour * vitc.FramesPerSecond * 3600);
 						}
 						catch { Console.Error.WriteLine("Unable to parse duration (T) argument!"); }
 						i++;
 						break;
 
-					case "-ev": // -ev HH:MM:SS:FF [UserBits/Timecode/UserBitsClear]="Test"
+					case "-ev": // -ev HH:MM:SS:FF [UserBits|Timecode|UserBitsClear]="Test"
 					case "--event":
 						try
 						{
@@ -261,13 +259,13 @@ namespace Unai.VITC
 							int min = Convert.ToInt32(tc[1]);
 							int sec = Convert.ToInt32(tc[2]);
 							int frame = Convert.ToInt32(tc[3]);
-							long tcf = frame + (sec * vitc.fps) + (min * vitc.fps * 60) + (hour * vitc.fps * 3600);
+							long timecodeAbsoluteFrame = frame + (sec * vitc.FramesPerSecond) + (min * vitc.FramesPerSecond * 60) + (hour * vitc.FramesPerSecond * 3600);
 
 							// Parse event type and its arguments (if any).
 							var evparams = args[i + 2].Split('=');
 							var eventType = (EventType)Enum.Parse(typeof(EventType), evparams[0], true);
 							string data = evparams.Length > 1 ? evparams[1] : null;
-							events[tcf] = new KeyValuePair<EventType, string>(eventType, data);
+							events[timecodeAbsoluteFrame] = new KeyValuePair<EventType, string>(eventType, data);
 						}
 						catch { Console.Error.WriteLine("Unable to parse event (EV) argument!"); }
 						i += 3;

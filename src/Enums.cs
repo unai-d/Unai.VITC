@@ -5,6 +5,22 @@ namespace Unai.VITC
 		Generator = 0,
 		Embedder = 1
 	}
+	
+	public enum EventType
+	{
+		UserBits,
+		Timecode,
+		Flags,
+		FPS,
+		UserBitsClear
+	}
+
+	public enum FrameRateType
+	{
+		Film = 24,
+		PAL = 25,
+		NTSC = 30
+	}
 
 	public enum PixelFormat
 	{

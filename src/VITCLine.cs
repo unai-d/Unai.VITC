@@ -1,89 +1,195 @@
-using System;
 using System.Collections;
-using System.Collections.Generic;
-using System.Linq;
 
 namespace Unai.VITC
 {
 	public class VITCLine
 	{
+		private BitArray ba = new BitArray(90);
+		public BitArray userBits = new BitArray(32);
+		private int frame = 0, second = 0, minute = 0, hour = 0;
+		private int fps = 25;
+		private long currentFrame = 0;
+		private bool secondField = false;
+
+		public bool b14 = false;
+		public bool b15 = false;
+		public bool b35 = false;
+		public bool b55 = false;
+		public bool b74 = false;
+		public bool b75 = false;
+
+		// Public properties //
+
 		/// <summary>
 		/// <see cref="BitArray"/> that contains the full VITC line.
 		/// </summary>
-		public BitArray ba = new BitArray(90);
-		/// <summary>
-		/// <see cref="BitArray"/> that contains only the user bits.
-		/// </summary>
-		public BitArray ub = new BitArray(32);
-		public int frame = 0;
-		public int sec = 0;
-		public int min = 0;
-		public int hour = 0;
+		public BitArray Result => ba;
 
-		public int fps = 25;
-		public long currentFrame = 0;
-		//public long totalFrames = 2500;
-		private bool secondField = false;
+		public int Frame
+		{
+			get
+			{
+				return frame;
+			}
+			set
+			{
+				frame = value;
+				UpdateFrameCount();
+			}
+		}
+		public int Second
+		{
+			get
+			{
+				return second;
+			}
+			set
+			{
+				second = value;
+				UpdateFrameCount();
+			}
+		}
+		public int Minute
+		{
+			get
+			{
+				return minute;
+			}
+			set
+			{
+				minute = value;
+				UpdateFrameCount();
+			}
+		}
+		public int Hour
+		{
+			get
+			{
+				return hour;
+			}
+			set
+			{
+				hour = value;
+				UpdateFrameCount();
+			}
+		}
 
 		/// <summary>
-		/// Bit 14: Frame drop bit. Used in NTSC video signals to indicate frame-drop timecode mode.
+		/// Gets or sets the frames per second.<br />
+		/// Values higher than 30 breaks the VITC specification, and values higher than 39 cannot be represented correctly.
 		/// </summary>
-		public bool b14 = false;
-		/// <summary>
-		/// Bit 15: Colour framing bit.
-		/// </summary>
-		public bool b15 = false;
-		/// <summary>
-		/// Bit 35: NTSC field bit. Used to indicate a NTSC (29.97/30 fps) second field.
-		/// </summary>
-		public bool b35 = false;
-		/// <summary>
-		/// Bit 55: User bits format bit.
-		/// </summary>
-		public bool b55 = false;
-		/// <summary>
-		/// Bit 74: BGF1 bit. Used to indicate if the timecode is synchronised to an external clock.
-		/// </summary>
-		public bool b74 = false;
-		/// <summary>
-		/// Bit 75: PAL field bit. Used to indicate PAL/SECAM (25 fps) second field.
-		/// </summary>
-		public bool b75 = false;
+		public int FramesPerSecond
+		{
+			get
+			{
+				return fps;
+			}
+			set
+			{
+				currentFrame = (long)((currentFrame / (double)fps) * value);
+				fps = value;
+				UpdateTimeData();
+			}
+		}
 
-		public enum FrameRateType { Film = 24, PAL = 25, NTSC = 30 }
-		public FrameRateType frameRateType = FrameRateType.PAL;
-		public bool DropFrameMode { get; set; } = false;
-		public bool Interlaced { get; set; } = false;
+		public long CurrentFrame
+		{
+			get
+			{
+				return currentFrame;
+			}
+			set
+			{
+				currentFrame = value;
+				UpdateTimeData();
+			}
+		}
+
 		/// <summary>
 		/// Indicates if the VITC represents a second/even field.
 		/// </summary>
 		public bool IsSecondField => secondField;
 
+		/// <summary>
+		/// Bit 14: Frame drop bit. Used in NTSC/film video signals to indicate frame-drop timecode mode.
+		/// </summary>
+		public bool FrameDropBit => b14;
+		/// <summary>
+		/// Bit 15: Colour framing bit. Used to indicate if the timecode is synchronised to the color component of an external video signal.
+		/// </summary>
+		public bool ColourFramingBit => b15;
+		/// <summary>
+		/// Bit 35: NTSC field bit. Used to indicate a NTSC (29.97/30 fps) second field.
+		/// </summary>
+		public bool NtscSecondFieldBit => b35;
+		/// <summary>
+		/// Bit 55: User bits format bit.
+		/// </summary>
+		public bool UserBitsFormatBit => b55;
+		/// <summary>
+		/// Bit 74: BGF1 bit. Used to indicate if the timecode is synchronised to an external clock.
+		/// </summary>
+		public bool ExternalClockBit => b74;
+		/// <summary>
+		/// Bit 75: PAL field bit. Used to indicate PAL/SECAM (25 fps) second field.
+		/// </summary>
+		public bool PalSecondFieldBit => b75;
+
+		/// <summary>
+		/// Gets the framerate type.
+		/// </summary>
+		public FrameRateType FrameRateType => (FrameRateType)fps;
+		/// <summary>
+		/// Gets or sets the drop frame mode. This is used to compensate the timecode for non-integer framerates like NTSC (29.97).
+		/// </summary>
+		public bool DropFrameMode { get; set; } = false;
+		/// <summary>
+		/// Gets or sets interlaced video mode. This enables the second field bits when rendering the line on the second field.
+		/// </summary>
+		public bool Interlaced { get; set; } = false;
+
 		#region Methods
+		private void UpdateTimeData()
+		{
+			frame = (int)(currentFrame % FramesPerSecond);
+			second = (int)(currentFrame / FramesPerSecond) % 60;
+			minute = (int)(currentFrame / FramesPerSecond / 60) % 60;
+			hour = (int)(currentFrame / FramesPerSecond / 3600) % 24;
+		}
+
+		private void UpdateFrameCount()
+		{
+			currentFrame = frame
+				+ (second * fps)
+				+ (minute * (fps * 60))
+				+ (hour * (fps * 3600));
+		}
+
 		public override string ToString()
 		{
-			return $"{hour:D2}:{min:D2}:{sec:D2}{(DropFrameMode ? ';' : ':')}{frame:D2}";
+			return $"{Hour:D2}:{Minute:D2}:{Second:D2}{(DropFrameMode ? ';' : ':')}{Frame:D2}";
 		}
 
 		/// <summary>
-		/// Generates the VITC line based on the data contained (including the timestamp, the user data bits…)
+		/// Generates the VITC line based on the data contained (including the timestamp, the user data bits…).<br />
+		/// The result is stored on the `Result` property as a <see cref="BitArray" />.
 		/// </summary>
 		public void Generate()
 		{
 			// Process flags.
-			b75 = secondField && frameRateType == FrameRateType.PAL;
-			b35 = secondField && frameRateType == FrameRateType.NTSC;
-			b14 = DropFrameMode && frameRateType == FrameRateType.NTSC;
+			b75 = secondField && FrameRateType == FrameRateType.PAL;
+			b35 = secondField && FrameRateType == FrameRateType.NTSC;
+			b14 = DropFrameMode && FrameRateType == FrameRateType.NTSC;
 
 			// Set unit and decimal values.
 			int frameU = frame % 10;
 			int frameD = (frame - frameU) / 10;
-			int secu = sec % 10;
-			int secd = (sec - secu) / 10;
-			int minu = min % 10;
-			int mind = (min - minu) / 10;
-			int houru = hour % 10;
-			int hourd = (hour - houru) / 10;
+			int secU = second % 10;
+			int secD = (second - secU) / 10;
+			int minU = minute % 10;
+			int minD = (minute - minU) / 10;
+			int hourU = hour % 10;
+			int hourD = (hour - hourU) / 10;
 
 			// Clear all bits.
 			ba.SetAll(false);
@@ -93,54 +199,58 @@ namespace Unai.VITC
 			ba.Set(50, true); ba.Set(60, true); ba.Set(70, true); ba.Set(80, true);
 
 			// Set frame number bits (2-5 and 12-13, including flags 14 and 15).
-			ba.Set(2, frameU % 2 == 1);
-			ba.Set(3, frameU == 2 || frameU == 3 || frameU == 6 || frameU == 7);
-			ba.Set(4, frameU >= 4 && frameU < 8);
-			ba.Set(5, frameU >= 8);
-			ba.Set(12, frameD % 2 == 1);
-			ba.Set(13, frameD == 2);
+			ba.Set(2, (frameU & 1) != 0);
+			ba.Set(3, (frameU & 2) != 0);
+			ba.Set(4, (frameU & 4) != 0);
+			ba.Set(5, (frameU & 8) != 0);
+
+			ba.Set(12, (frameD & 1) != 0);
+			ba.Set(13, (frameD & 2) != 0);
 			ba.Set(14, b14);
 			ba.Set(15, b15);
 
 			// Set second number bits (22-25 and 32-34, including flag 35).
-			ba.Set(22, secu % 2 == 1);
-			ba.Set(23, secu == 2 || secu == 3 || secu == 6 || secu == 7);
-			ba.Set(24, secu >= 4 && secu < 8);
-			ba.Set(25, secu >= 8);
-			ba.Set(32, secd % 2 == 1);
-			ba.Set(33, secd == 2 || secd == 3 || secd == 6 || secd == 7);
-			ba.Set(34, secd >= 4);
+			ba.Set(22, (secU & 1) != 0);
+			ba.Set(23, (secU & 2) != 0);
+			ba.Set(24, (secU & 4) != 0);
+			ba.Set(25, (secU & 8) != 0);
+
+			ba.Set(32, (secD & 1) != 0);
+			ba.Set(33, (secD & 2) != 0);
+			ba.Set(34, (secD & 4) != 0);
 			ba.Set(35, b35);
 
 			// Set minute number bits (42-45 and 52-54, including flag 55).
-			ba.Set(42, minu % 2 == 1);
-			ba.Set(43, minu == 2 || minu == 3 || minu == 6 || minu == 7);
-			ba.Set(44, minu >= 4 && minu < 8);
-			ba.Set(45, minu >= 8);
-			ba.Set(52, mind % 2 == 1);
-			ba.Set(53, mind == 2 || mind == 3 || mind == 6 || mind == 7);
-			ba.Set(54, mind >= 4);
+			ba.Set(42, (minU & 1) != 0);
+			ba.Set(43, (minU & 2) != 0);
+			ba.Set(44, (minU & 4) != 0);
+			ba.Set(45, (minU & 8) != 0);
+
+			ba.Set(52, (minD & 1) != 0);
+			ba.Set(53, (minD & 2) != 0);
+			ba.Set(54, (minD & 4) != 0);
 			ba.Set(55, b55);
 
 			// Set hour number bits (62-65 and 72-73, including flags 74 and 75).
-			ba.Set(62, houru % 2 == 1);
-			ba.Set(63, houru == 2 || houru == 3 || houru == 6 || houru == 7);
-			ba.Set(64, houru >= 4 && houru < 8);
-			ba.Set(65, houru >= 8);
-			ba.Set(72, hourd == 1);
-			ba.Set(73, hourd == 2);
+			ba.Set(62, (hourU & 1) != 0);
+			ba.Set(63, (hourU & 2) != 0);
+			ba.Set(64, (hourU & 4) != 0);
+			ba.Set(65, (hourU & 8) != 0);
+
+			ba.Set(72, (hourD & 1) != 0);
+			ba.Set(73, (hourD & 2) != 0);
 			ba.Set(74, b74);
 			ba.Set(75, b75);
 
 			// Set user bits (4 bytes).
-			ba.Set(6, ub.Get(0)); ba.Set(7, ub.Get(1)); ba.Set(8, ub.Get(2)); ba.Set(9, ub.Get(3));
-			ba.Set(16, ub.Get(4)); ba.Set(17, ub.Get(5)); ba.Set(18, ub.Get(6)); ba.Set(19, ub.Get(7));
-			ba.Set(26, ub.Get(8)); ba.Set(27, ub.Get(9)); ba.Set(28, ub.Get(10)); ba.Set(29, ub.Get(11));
-			ba.Set(36, ub.Get(12)); ba.Set(37, ub.Get(13)); ba.Set(38, ub.Get(14)); ba.Set(39, ub.Get(15));
-			ba.Set(46, ub.Get(16)); ba.Set(47, ub.Get(17)); ba.Set(48, ub.Get(18)); ba.Set(49, ub.Get(19));
-			ba.Set(56, ub.Get(20)); ba.Set(57, ub.Get(21)); ba.Set(58, ub.Get(22)); ba.Set(59, ub.Get(23));
-			ba.Set(66, ub.Get(24)); ba.Set(67, ub.Get(25)); ba.Set(68, ub.Get(26)); ba.Set(69, ub.Get(27));
-			ba.Set(76, ub.Get(28)); ba.Set(77, ub.Get(29)); ba.Set(78, ub.Get(30)); ba.Set(79, ub.Get(31));
+			ba.Set(6, userBits.Get(0)); ba.Set(7, userBits.Get(1)); ba.Set(8, userBits.Get(2)); ba.Set(9, userBits.Get(3));
+			ba.Set(16, userBits.Get(4)); ba.Set(17, userBits.Get(5)); ba.Set(18, userBits.Get(6)); ba.Set(19, userBits.Get(7));
+			ba.Set(26, userBits.Get(8)); ba.Set(27, userBits.Get(9)); ba.Set(28, userBits.Get(10)); ba.Set(29, userBits.Get(11));
+			ba.Set(36, userBits.Get(12)); ba.Set(37, userBits.Get(13)); ba.Set(38, userBits.Get(14)); ba.Set(39, userBits.Get(15));
+			ba.Set(46, userBits.Get(16)); ba.Set(47, userBits.Get(17)); ba.Set(48, userBits.Get(18)); ba.Set(49, userBits.Get(19));
+			ba.Set(56, userBits.Get(20)); ba.Set(57, userBits.Get(21)); ba.Set(58, userBits.Get(22)); ba.Set(59, userBits.Get(23));
+			ba.Set(66, userBits.Get(24)); ba.Set(67, userBits.Get(25)); ba.Set(68, userBits.Get(26)); ba.Set(69, userBits.Get(27));
+			ba.Set(76, userBits.Get(28)); ba.Set(77, userBits.Get(29)); ba.Set(78, userBits.Get(30)); ba.Set(79, userBits.Get(31));
 
 			SetChecksum();
 		}
@@ -165,18 +275,18 @@ namespace Unai.VITC
 		public void StepOneFrame()
 		{
 			frame++;
-			if (frame >= fps) { frame = 0; sec++; }
-			if (sec > 59) { sec = 0; min++; }
-			if (min > 59) { min = 0; hour++; }
+			if (frame >= fps) { frame = 0; second++; }
+			if (second > 59) { second = 0; minute++; }
+			if (minute > 59) { minute = 0; hour++; }
 			if (hour > 23) { hour = 0; }
-			currentFrame++;
+			UpdateFrameCount();
 
 			// SMPTE drop-frame timecode.
-			if (DropFrameMode && frameRateType == FrameRateType.NTSC)
+			if (DropFrameMode && FrameRateType == FrameRateType.NTSC)
 			{
-				if (min % 10 != 0 && sec == 0 && frame == 0)
+				if (Minute % 10 != 0 && Second == 0 && Frame == 0)
 				{
-					frame = 2;
+					Frame = 2;
 				}
 			}
 
